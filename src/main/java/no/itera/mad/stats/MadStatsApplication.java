@@ -1,9 +1,15 @@
 package no.itera.mad.stats;
 
+import static java.lang.String.format;
+
+import java.util.function.Consumer;
+
 import no.itera.mad.stats.model.CreateStatsDto;
 import no.itera.mad.stats.model.Health;
 import no.itera.mad.stats.model.Result;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -25,6 +31,9 @@ import reactor.core.publisher.Flux;
 @RestController
 public class MadStatsApplication {
 
+  private static final Logger logger = LoggerFactory.getLogger(MadStatsApplication.class);
+
+
   private final SubscribableChannel statsChannel;
 
   @Autowired
@@ -43,21 +52,18 @@ public class MadStatsApplication {
 
   @PostMapping(value = "/", consumes = MediaType.APPLICATION_JSON_VALUE)
   public void stats(@RequestBody CreateStatsDto createStatsDto) {
-    System.out.println(statsChannel);
-    toJson(createStatsDto).ifOk(System.out::println);
-
+    logger.info("Received message from {}", createStatsDto.getService());
     statsChannel.send(new GenericMessage<>(createStatsDto));
   }
 
   @GetMapping(value = "/", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public Flux<String> stats() {
-	  System.out.println(statsChannel);
     return Flux.create(sink -> {
-      MessageHandler handler = msg -> {
-        System.out.println("Received message");
-        toJson(msg).ifOk(System.out::println).orElse((e) -> new RuntimeException(""));
-        toJson(msg).ifOk(sink::next).orElse(sink::error);
-      };
+      MessageHandler handler = msg ->
+        toJson(msg)
+            .ifOk(info("Stats sent: {}", sink::next))
+            .orElse(err(format("Could not serialize msg to json: %s", msg), sink::error));
+
 
       sink.onCancel(() -> statsChannel.unsubscribe(handler));
       statsChannel.subscribe(handler);
@@ -71,6 +77,20 @@ public class MadStatsApplication {
     } catch (JsonProcessingException e) {
       return Result.err(e);
     }
+  }
+
+  private static <T> Consumer<T> info(String message, Consumer<T> next) {
+    return v -> {
+        logger.info(message, v);
+        next.accept(v);
+    };
+  }
+
+  private static Consumer<Throwable> err(String reason, Consumer<Throwable> next) {
+    return v -> {
+      logger.error(reason, v);
+      next.accept(v);
+    };
   }
 }
 
