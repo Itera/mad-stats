@@ -1,0 +1,21 @@
+version: '3'
+services:
+
+  mongodb:
+    image: mongo:3.0.4
+    ports:
+      - "27017:27017"
+    command: mongod --smallfiles
+
+  mad-statistics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sh -c "java -Djava.security.egd=file:/dev/./urandom -jar /app.jar"
+    ports:
+      - "8089:8089"
+    links:
+      - mongodb
+    environment:
+      - SERVER_PORT=8089
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb/mad-stats
