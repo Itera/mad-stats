@@ -5,10 +5,10 @@
 
 	<groupId>no.itera.mad</groupId>
 	<artifactId>mad-stats</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 
-	<name>stats</name>
+	<name>mad-stats</name>
 	<description>Statistics service for mad.itera.no</description>
 
 	<parent>
